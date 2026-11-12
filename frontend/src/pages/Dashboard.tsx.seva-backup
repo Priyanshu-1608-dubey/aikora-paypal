@@ -1,0 +1,300 @@
+﻿import { useEffect, useState } from 'react'
+import {
+  LayoutDashboard, Users, Sparkles, Gift, Heart, Wallet,
+  ArrowUpRight, ArrowDownLeft, Bell, Search, Settings,
+  LogOut, CircleHelp, Menu, CalendarDays, ShieldCheck,
+} from 'lucide-react'
+import { apiRequest } from '../services/api'
+import './Dashboard.css'
+
+type WalletData = {
+  id: number
+  userId: number
+  balance: number
+  currency: string
+}
+
+type TransactionData = {
+  id: number
+  amount: number
+  type: string
+  description: string
+  createdAt: string
+}
+type FamilyMemberData = {
+  id: number
+  role: string
+  user: {
+    id: number
+    fullName: string
+    email: string
+  }
+}
+type CelebrationData = {
+  id: number
+  title: string
+  celebrationDate: string
+  description: string
+}
+
+function Dashboard() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [backendStatus, setBackendStatus] = useState('Checking backend...')
+  const [backendError, setBackendError] = useState(false)
+  const [wallet, setWallet] = useState<WalletData | null>(null)
+  const [transactions, setTransactions] = useState<TransactionData[]>([])
+  const [familyMembers, setFamilyMembers] = useState<FamilyMemberData[]>([])
+  const [celebrations, setCelebrations] = useState<CelebrationData[]>([])
+  const [dataError, setDataError] = useState('')
+
+  useEffect(() => {
+    fetch('http://localhost:8080/api/hello')
+      .then((response) => {
+        if (!response.ok) throw new Error('Backend request failed')
+        return response.text()
+      })
+      .then((message) => {
+        setBackendStatus(message)
+        setBackendError(false)
+      })
+      .catch(() => {
+        setBackendStatus('Backend connection failed. Is Spring Boot running?')
+        setBackendError(true)
+      })
+
+    apiRequest<WalletData>('/wallets/user/1')
+      .then(setWallet)
+      .catch(() => setDataError('Could not load wallet data.'))
+
+    apiRequest<TransactionData[]>('/transactions/wallet/1')
+      .then(setTransactions)
+      .catch(() => setDataError('Could not load transaction history.'))
+    
+    apiRequest<FamilyMemberData[]>('/family-members/circle/1')
+      .then(setFamilyMembers)
+      .catch(() => setDataError('Could not load family members.'))
+    
+    apiRequest<CelebrationData[]>('/celebrations/circle/1')
+      .then(setCelebrations)
+      .catch(() => setDataError('Could not load celebrations.'))
+  }, [])
+
+  const navigation = [
+    { name: 'Overview', icon: LayoutDashboard },
+    { name: 'Family Circle', icon: Users },
+    { name: 'Apnaa AI', icon: Sparkles },
+    { name: 'UtsavPay', icon: Gift },
+    { name: 'SevaConnect', icon: Heart },
+    { name: 'Transactions', icon: Wallet },
+  ]
+
+  const formatAmount = (amount: number, currency = 'INR') =>
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 2,
+    }).format(amount)
+
+  const formatDate = (date: string) =>
+    new Date(date).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+    })
+
+  return (
+    <div className="dashboard">
+      <aside className={`dashboard-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
+        <a href="/" className="dashboard-brand">
+          <span className="dashboard-brand-icon">A</span>
+          <span>AIKORA<span className="brand-dot">.</span></span>
+        </a>
+
+        <div className="sidebar-section-label">WORKSPACE</div>
+        <nav className="sidebar-navigation">
+          {navigation.map((item, index) => {
+            const Icon = item.icon
+            return (
+              <a href="#" key={item.name} className={`sidebar-link ${index === 0 ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}>
+                <Icon size={19} />
+                <span>{item.name}</span>
+                {item.name === 'Apnaa AI' && <span className="new-badge">AI</span>}
+              </a>
+            )
+          })}
+        </nav>
+
+        <div className="sidebar-bottom">
+          <div className="sidebar-community">
+            <Heart size={20} />
+            <h4>One Global Family</h4>
+            <p>Connecting people through trust, kindness and technology.</p>
+          </div>
+          <a href="#" className="sidebar-link"><CircleHelp size={18} />Help &amp; Support</a>
+          <a href="#" className="sidebar-link"><Settings size={18} />Settings</a>
+          <a href="/" className="sidebar-link"><LogOut size={18} />Exit Dashboard</a>
+        </div>
+      </aside>
+
+      <main className="dashboard-main">
+        <header className="dashboard-header">
+          <div className="dashboard-header-left">
+            <button className="dashboard-menu-button" onClick={() => setSidebarOpen(!sidebarOpen)}><Menu size={22} /></button>
+            <div>
+              <span className="dashboard-breadcrumb">WORKSPACE / OVERVIEW</span>
+              <h2>Dashboard</h2>
+            </div>
+          </div>
+          <div className="dashboard-header-right">
+            <div className="dashboard-search"><Search size={17} /><input placeholder="Search anything..." /></div>
+            <button className="notification-button"><Bell size={19} /><span /></button>
+            <div className="dashboard-avatar">A</div>
+          </div>
+        </header>
+
+        <div className="dashboard-content">
+          <div className="dashboard-welcome">
+            <div>
+              <span className="welcome-date"><CalendarDays size={15} />YOUR PERSONAL SPACE</span>
+              <h1>Namaste!</h1>
+              <p>Welcome to your connected world. Let's make every connection meaningful.</p>
+            </div>
+            <div className="demo-label">DEMO ENVIRONMENT</div>
+          </div>
+
+          <div className={`backend-status ${backendError ? 'backend-error' : ''}`} role="status">
+            <strong>Backend status:</strong> {backendStatus}
+          </div>
+          {dataError && <div className="backend-status backend-error" role="alert">{dataError}</div>}
+
+          <section className="overview-grid">
+            <div className="overview-card primary-overview">
+              <div className="overview-card-header">
+                <span>WALLET BALANCE</span>
+                <Wallet size={21} />
+              </div>
+              <h2>{wallet ? formatAmount(wallet.balance, wallet.currency) : 'Loading...'}</h2>
+              <p>Development wallet â€” not real payment funds.</p>
+              <div className="overview-card-footer">
+                <span>Account ID: {wallet?.id ?? 'â€”'}</span>
+                <ShieldCheck size={16} />
+              </div>
+            </div>
+
+            <div className="overview-card">
+              <div className="overview-card-header">
+                <span>FAMILY CONTRIBUTIONS</span>
+                <Users size={21} />
+              </div>
+              <h2>â€”</h2>
+              <p className="overview-description">Not connected yet</p>
+              <div className="overview-indicator">â†— Community activity</div>
+            </div>
+
+            <div className="overview-card">
+              <div className="overview-card-header">
+                <span>ACTIVE CELEBRATIONS</span>
+                <Gift size={21} />
+              </div>
+              <h2>â€”</h2>
+              <p className="overview-description">Not connected yet</p>
+              <div className="overview-indicator">Upcoming events</div>
+            </div>
+          </section>
+
+          <section className="dashboard-section">
+            <div className="dashboard-section-heading"><div><h3>Quick Actions</h3><p>Everything important, just one click away.</p></div></div>
+            <div className="quick-actions-grid">
+              <button className="quick-action"><span className="action-icon ai-icon"><Sparkles /></span><span>Ask Apnaa AI</span><ArrowUpRight size={16} /></button>
+              <button className="quick-action"><span className="action-icon family-icon"><Users /></span><span>Create Family Circle</span><ArrowUpRight size={16} /></button>
+              <button className="quick-action"><span className="action-icon festival-icon"><Gift /></span><span>Create Celebration</span><ArrowUpRight size={16} /></button>
+              <button className="quick-action"><span className="action-icon seva-icon"><Heart /></span><span>Explore Seva</span><ArrowUpRight size={16} /></button>
+            </div>
+          </section>
+
+          <section className="dashboard-bottom-grid">
+            <div className="dashboard-panel">
+              <div className="panel-heading"><div><h3>Recent Activities</h3><p>Your latest wallet transactions.</p></div><button className="text-action">View all</button></div>
+              <div className="activity-list">
+                {transactions.length === 0 ? (
+                  <p className="activity-info">No transactions found.</p>
+                ) : transactions.slice(0, 5).map((transaction) => {
+                  const received = ['DEPOSIT', 'REFUND'].includes(transaction.type)
+                  return (
+                    <div className="activity-item" key={transaction.id}>
+                      <div className={`activity-icon ${received ? 'received' : 'sent'}`}>{received ? <ArrowDownLeft size={19} /> : <ArrowUpRight size={19} />}</div>
+                      <div className="activity-info"><h4>{transaction.description || transaction.type}</h4><p>{transaction.type}</p></div>
+                      <div className="activity-amount"><h4 className={received ? 'received' : 'sent'}>{received ? '+' : '-'}{formatAmount(transaction.amount)}</h4><p>{formatDate(transaction.createdAt)}</p></div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="dashboard-panel">
+              <div className="panel-heading">
+                <div>
+                  <h3>Family Members</h3>
+                  <p>People in your family circle.</p>
+                </div>
+              </div>
+              <div className="activity-list">
+                {familyMembers.length === 0 ? (
+                  <p className="activity-info">No family members found.</p>
+                ) : familyMembers.map((member) => (
+                  <div className="activity-item" key={member.id}>
+                    <div className="activity-icon received">
+                      <Users size={19} />
+                    </div>
+                    <div className="activity-info">
+                      <h4>{member.user.fullName}</h4>
+                      <p>{member.role}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="dashboard-panel">
+              <div className="panel-heading">
+                <div>
+                  <h3>Upcoming Celebrations</h3>
+                  <p>Events in your family circle.</p>
+                </div>
+              </div>
+              <div className="activity-list">
+                {celebrations.length === 0 ? (
+                  <p className="activity-info">No celebrations scheduled.</p>
+                ) : celebrations.map((celebration) => (
+                  <div className="activity-item" key={celebration.id}>
+                    <div className="activity-icon received">
+                      <Gift size={19} />
+                    </div>
+                    <div className="activity-info">
+                      <h4>{celebration.title}</h4>
+                      <p>{celebration.celebrationDate ? new Date(celebration.celebrationDate).toLocaleDateString('en-IN') : 'Date not set'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="ai-panel">
+              <div className="ai-panel-icon"><Sparkles size={25} /></div>
+              <span className="ai-panel-label">YOUR INTELLIGENT COMPANION</span>
+              <h3>Meet Apnaa AI.<br />Your everyday assistant.</h3>
+              <p>Plan celebrations, organize expenses and make smarter financial decisions with conversational AI.</p>
+              <button className="ai-panel-button">Start a conversation<ArrowUpRight size={17} /></button>
+            </div>
+          </section>
+
+                    <footer className="dashboard-footer">
+            <span>Â© 2026 AIKORA</span>
+            <span>Inspired by India. Designed for the World.</span>
+          </footer>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+export default Dashboard
+
+
